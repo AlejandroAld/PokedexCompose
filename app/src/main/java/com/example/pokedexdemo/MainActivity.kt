@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
             val data = result.data
             val pokemonAdded = data?.getBooleanExtra("pokemon_added", false) ?: false
             if (pokemonAdded) {
-                // Realiza una acción después de agregar el Pokémon
+                // Realizar una acción después de agregar el Pokémon
             }
         }
     }
@@ -65,6 +65,7 @@ class MainActivity : ComponentActivity() {
 
         val title = viewModel.title.value
         val description = viewModel.description.value
+        val pokemonList = viewModel.pokemonList.value
 
         Column(
             modifier = Modifier.fillMaxSize()
@@ -96,105 +97,119 @@ class MainActivity : ComponentActivity() {
                 Text(text = "Añadir")
             }
 
+            // Muestra la lista de Pokémon utilizando PokemonListScreen
+            PokemonListScreen(pokemonList = pokemonList)
+//            Surface(
+//                modifier = Modifier.fillMaxSize(),
+//                color = MaterialTheme.colorScheme.background
+//            ) {
+//                PokemonListScreen()
+//            }
+        }
+    }
 
-            Surface(
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
+    interface PokemonApiServicePoke {
+        @GET("pokemon")
+        suspend fun getPokemonList(
+            @Query("limit") limit: Int,
+            @Query("offset") offset: Int
+        ): Response<PokemonListResponse>
+    }
+
+    data class PokemonListResponse(
+        val results: List<PokemonResult>
+    )
+
+    data class PokemonResult(
+        val name: String,
+        val url: String
+    )
+
+    val retrofit: Retrofit = Retrofit.Builder()
+        .baseUrl("https://pokeapi.co/api/v2/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+
+    val PokemonApiServicePo: PokemonApiServicePoke = retrofit.create(PokemonApiServicePoke::class.java)
+
+    val retrofit2 = Retrofit.Builder()
+        .baseUrl("http://10.0.2.2:8000/api/post/")
+        .addConverterFactory(GsonConverterFactory.create())
+        .build()
+    val pokemonApiService: PokemonApiService = retrofit2.create(PokemonApiService::class.java)
+
+    @OptIn(ExperimentalCoilApi::class)
+    @Composable
+    fun PokemonListScreen(pokemonList: List<PokemonResult>) {
+        var pokemonList by remember { mutableStateOf(emptyList<PokemonResult>()) }
+        var searchText by remember { mutableStateOf("") }
+
+        LaunchedEffect(Unit) {
+            fetchPokemonList { newList ->
+                pokemonList = newList
+            }
+        }
+
+        var pokemonListApi by remember { mutableStateOf(emptyList<PokemonApi>()) }
+        LaunchedEffect(Unit) {
+            fetchPokemonListAPI { newList ->
+                pokemonListApi = newList
+            }
+        }
+
+        Column {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp)
             ) {
-                PokemonListScreen()
-            }
-        }
-    }
-}
-
-interface PokemonApiServicePoke {
-    @GET("pokemon")
-    suspend fun getPokemonList(
-        @Query("limit") limit: Int,
-        @Query("offset") offset: Int
-    ): Response<PokemonListResponse>
-}
-
-data class PokemonListResponse(
-    val results: List<PokemonResult>
-)
-
-data class PokemonResult(
-    val name: String,
-    val url: String
-)
-
-val retrofit: Retrofit = Retrofit.Builder()
-    .baseUrl("https://pokeapi.co/api/v2/")
-    .addConverterFactory(GsonConverterFactory.create())
-    .build()
-
-val PokemonApiServicePo: PokemonApiServicePoke = retrofit.create(PokemonApiServicePoke::class.java)
-
-@OptIn(ExperimentalCoilApi::class)
-@Composable
-fun PokemonListScreen() {
-    var pokemonList by remember { mutableStateOf(emptyList<PokemonResult>()) }
-    var searchText by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        fetchPokemonList { newList ->
-            pokemonList = newList
-        }
-    }
-
-    Column {
-        BasicTextField(
-            value = searchText,
-            onValueChange = {
-                searchText = it
-            },
-            keyboardOptions = KeyboardOptions.Default.copy(
-                imeAction = ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onDone = {
-                    // Handle search or filtering here
+                items(pokemonListApi) { pokemon ->
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(text = pokemon.content)
+                        Text(text = pokemon.title)
+                    }
                 }
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        )
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            items(pokemonList) { pokemon ->
-                Column(
-                    modifier = Modifier.padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    val imageUrl = getPokemonImageUrl(pokemon)
-                    val customPainter = rememberImagePainter(data = imageUrl)
-                    Image(
-                        painter = customPainter,
-                        contentDescription = null,
-                        modifier = Modifier.size(120.dp)
-                    )
-                    Text(text = pokemon.name)
+                items(pokemonList) { pokemon ->
+                    Column(
+                        modifier = Modifier.padding(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        val imageUrl = getPokemonImageUrl(pokemon)
+                        val customPainter = rememberImagePainter(data = imageUrl)
+                        Image(
+                            painter = customPainter,
+                            contentDescription = null,
+                            modifier = Modifier.size(120.dp)
+                        )
+                        Text(text = pokemon.name)
+                    }
                 }
             }
         }
     }
-}
 
-private suspend fun fetchPokemonList(onSuccess: (List<PokemonResult>) -> Unit) {
-    val response = PokemonApiServicePo.getPokemonList(limit = 100, offset = 0)
-    if (response.isSuccessful) {
-        onSuccess(response.body()?.results ?: emptyList())
+    private suspend fun fetchPokemonList(onSuccess: (List<PokemonResult>) -> Unit) {
+        val response = PokemonApiServicePo.getPokemonList(limit = 20, offset = 0)
+        if (response.isSuccessful) {
+            onSuccess(response.body()?.results ?: emptyList())
+        }
+    }
+
+    private suspend fun fetchPokemonListAPI(onSuccess: (List<PokemonApi>) -> Unit) {
+        val response = pokemonApiService.getPokemon()
+        if (response.isSuccessful) {
+            val pokemonList = response.body() ?: emptyList()
+            onSuccess(pokemonList)
+        }
+    }
+
+
+    private fun getPokemonImageUrl(pokemon: PokemonResult): String {
+        val id = pokemon.url.split("/").dropLast(1).last()
+        return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$id.png"
     }
 }
 
 
-
-private fun getPokemonImageUrl(pokemon: PokemonResult): String {
-    val id = pokemon.url.split("/").dropLast(1).last()
-    return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$id.png"
-}
