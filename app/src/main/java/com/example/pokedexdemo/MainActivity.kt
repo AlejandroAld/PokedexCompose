@@ -38,16 +38,16 @@ import retrofit2.http.Query
 
 class MainActivity : ComponentActivity() {
     private val viewModel: PokemonViewModel by viewModels()
-
     private val addPokemonLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val pokemonAdded = data?.getBooleanExtra("pokemon_added", false) ?: false
-            if (pokemonAdded) {
-                // Realizar una acción después de agregar el Pokémon
-            }
+            // Se ha agregado un nuevo Pokémon, reinicia la actividad principal
+            val intent = Intent(this, MainActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+            startActivity(intent)
+            finish()
+
         }
     }
 
@@ -63,9 +63,6 @@ class MainActivity : ComponentActivity() {
     fun PokedexApp() {
         val viewModel: PokemonViewModel = viewModel
 
-        val title = viewModel.title.value
-        val description = viewModel.description.value
-        val pokemonList = viewModel.pokemonList.value
 
         Column(
             modifier = Modifier.fillMaxSize()
@@ -85,8 +82,6 @@ class MainActivity : ComponentActivity() {
 
             Button(
                 onClick = {
-                    viewModel.setTitle("Nuevo título")
-                    viewModel.setDescription("Nueva descripción")
                     // Lanza la actividad para agregar un Pokémon
                     addPokemonLauncher.launch(Intent(this@MainActivity, AddPokemonActivity::class.java))
                 },
@@ -97,14 +92,7 @@ class MainActivity : ComponentActivity() {
                 Text(text = "Añadir")
             }
 
-            // Muestra la lista de Pokémon utilizando PokemonListScreen
-            PokemonListScreen(pokemonList = pokemonList)
-//            Surface(
-//                modifier = Modifier.fillMaxSize(),
-//                color = MaterialTheme.colorScheme.background
-//            ) {
-//                PokemonListScreen()
-//            }
+            PokemonListScreen()
         }
     }
 
@@ -140,9 +128,8 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalCoilApi::class)
     @Composable
-    fun PokemonListScreen(pokemonList: List<PokemonResult>) {
+    fun PokemonListScreen() {
         var pokemonList by remember { mutableStateOf(emptyList<PokemonResult>()) }
-        var searchText by remember { mutableStateOf("") }
 
         LaunchedEffect(Unit) {
             fetchPokemonList { newList ->
@@ -167,8 +154,8 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = pokemon.content)
                         Text(text = pokemon.title)
+                        Text(text = pokemon.content)
                     }
                 }
                 items(pokemonList) { pokemon ->
@@ -210,6 +197,7 @@ class MainActivity : ComponentActivity() {
         val id = pokemon.url.split("/").dropLast(1).last()
         return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/$id.png"
     }
+
 }
 
 

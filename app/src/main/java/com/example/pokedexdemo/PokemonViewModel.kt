@@ -1,6 +1,8 @@
 package com.example.pokedexdemo
 
 import androidx.compose.runtime.*
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -16,9 +18,8 @@ class PokemonViewModel : ViewModel() {
     val description: MutableState<String> = _description
 
     // Lista de Pokémon
-    private val _pokemonList = mutableStateOf<List<MainActivity.PokemonResult>>(emptyList())
-    val pokemonList: State<List<MainActivity.PokemonResult>> = _pokemonList
-
+    private val _pokemonList = MutableLiveData<List<MainActivity.PokemonResult>>(emptyList())
+    val pokemonList: LiveData<List<MainActivity.PokemonResult>> = _pokemonList
 
     fun setTitle(newTitle: String) {
         _title.value = newTitle
@@ -28,4 +29,9 @@ class PokemonViewModel : ViewModel() {
         _description.value = newDescription
     }
 
+    // Agrega una función para actualizar la lista de Pokémon
+    fun updatePokemonList(newList: List<MainActivity.PokemonResult>) {
+        _pokemonList.value = newList
+    }
 }
+

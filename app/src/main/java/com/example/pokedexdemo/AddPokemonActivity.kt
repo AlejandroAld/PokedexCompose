@@ -37,18 +37,6 @@ import retrofit2.Callback
 
 
 class AddPokemonActivity : ComponentActivity() {
-    private val addPokemonLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            val pokemonAdded = data?.getBooleanExtra("pokemon_added", false) ?: false
-            if (pokemonAdded) {
-                // Realizar una acción después de agregar el Pokémon
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -72,7 +60,7 @@ class AddPokemonActivity : ComponentActivity() {
                 title = { Text(text = "Añadir Pokémon") },
                 navigationIcon = {
                     IconButton(
-                        onClick = { finish() } // Cerrar la actividad al hacer clic en la flecha de retroceso
+                        onClick = { finish() }
                     ) {
                         Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
                     }
@@ -161,7 +149,6 @@ private fun postDataUsingRetrofit(ctx: Context, title: String, description: Stri
         override fun onResponse(call: Call<Pokemon?>, response: Response<Pokemon?>) {
             // this method is called when we get response from our api.
             Toast.makeText(ctx, "Data posted to API", Toast.LENGTH_SHORT).show()
-
 
             // we are getting a response from our body and
             // passing it to our model class.
