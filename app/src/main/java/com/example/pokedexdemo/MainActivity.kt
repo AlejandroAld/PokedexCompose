@@ -1,8 +1,12 @@
 package com.example.pokedexdemo
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -12,11 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,9 +26,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import coil.annotation.ExperimentalCoilApi
 import coil.compose.rememberImagePainter
 import retrofit2.Response
 import retrofit2.Retrofit
@@ -35,45 +37,77 @@ import retrofit2.http.GET
 import retrofit2.http.Query
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: PokemonViewModel by viewModels()
+
+    private val addPokemonLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val data = result.data
+            val pokemonAdded = data?.getBooleanExtra("pokemon_added", false) ?: false
+            if (pokemonAdded) {
+                // Realiza una acción después de agregar el Pokémon
+            }
+        }
+    }
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            PokedexApp() // Utiliza el composable PokedexApp en lugar de PokemonListScreen
+            PokedexApp()
+        }
+    }
+
+    @Composable
+    fun PokedexApp() {
+        val viewModel: PokemonViewModel = viewModel
+
+        val title = viewModel.title.value
+        val description = viewModel.description.value
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Pokedex",
+                    style = MaterialTheme.typography.headlineLarge,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+
+            Button(
+                onClick = {
+                    viewModel.setTitle("Nuevo título")
+                    viewModel.setDescription("Nueva descripción")
+                    // Lanza la actividad para agregar un Pokémon
+                    addPokemonLauncher.launch(Intent(this@MainActivity, AddPokemonActivity::class.java))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(text = "Añadir")
+            }
+
+
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                PokemonListScreen()
+            }
         }
     }
 }
 
-@Composable
-fun PokedexApp() {
-    // Utiliza un Row para colocar el título "Pokedex"
-    Column(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "Pokedex",
-                style = MaterialTheme.typography.headlineLarge, // Puedes ajustar el estilo según tus preferencias
-                modifier = Modifier.padding(8.dp)
-            )
-        }
-
-        // El contenido principal de la aplicación, incluyendo la lista de Pokémon
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
-        ) {
-            PokemonListScreen()
-        }
-    }
-}
-
-
-interface PokemonApiService {
+interface PokemonApiServicePoke {
     @GET("pokemon")
     suspend fun getPokemonList(
         @Query("limit") limit: Int,
@@ -95,8 +129,9 @@ val retrofit: Retrofit = Retrofit.Builder()
     .addConverterFactory(GsonConverterFactory.create())
     .build()
 
-val pokemonApiService: PokemonApiService = retrofit.create(PokemonApiService::class.java)
+val PokemonApiServicePo: PokemonApiServicePoke = retrofit.create(PokemonApiServicePoke::class.java)
 
+@OptIn(ExperimentalCoilApi::class)
 @Composable
 fun PokemonListScreen() {
     var pokemonList by remember { mutableStateOf(emptyList<PokemonResult>()) }
@@ -128,7 +163,7 @@ fun PokemonListScreen() {
         )
 
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2), // Muestra 2 columnas
+            columns = GridCells.Fixed(2),
             contentPadding = PaddingValues(16.dp)
         ) {
             items(pokemonList) { pokemon ->
@@ -140,7 +175,7 @@ fun PokemonListScreen() {
                     val customPainter = rememberImagePainter(data = imageUrl)
                     Image(
                         painter = customPainter,
-                        contentDescription = null, // Deja que Coil maneje la descripción
+                        contentDescription = null,
                         modifier = Modifier.size(120.dp)
                     )
                     Text(text = pokemon.name)
@@ -151,7 +186,7 @@ fun PokemonListScreen() {
 }
 
 private suspend fun fetchPokemonList(onSuccess: (List<PokemonResult>) -> Unit) {
-    val response = pokemonApiService.getPokemonList(limit = 100, offset = 0)
+    val response = PokemonApiServicePo.getPokemonList(limit = 100, offset = 0)
     if (response.isSuccessful) {
         onSuccess(response.body()?.results ?: emptyList())
     }
